@@ -1,0 +1,16 @@
+{
+  "name": "vortexmt",
+  "version": "0.1.0",
+  "description": "Multithreaded operations for use in Vortex",
+  "main": "index.js",
+  "scripts": {
+    "install": "autogypi && node-gyp configure build"
+  },
+  "author": "Black Tree Gaming Ltd",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "autogypi": "^0.2.2",
+    "nan": "^2.14.0",
+    "node-gyp": "^5.0.0"
+  }
+}
