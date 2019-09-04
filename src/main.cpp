@@ -7,6 +7,18 @@
 using namespace Nan;
 using namespace v8;
 
+std::string toHex(uint8_t *buf, size_t len) {
+  static const char *hex_chars = "0123456789abcdef";
+
+  std::string result;
+
+  for (int i = 0; i < len; ++i) {
+    result.push_back(hex_chars[buf[i] >> 4]);
+    result.push_back(hex_chars[buf[i] & 0xf]);
+  }
+  return result;
+}
+
 class MD5Worker : public AsyncWorker {
 public:
   MD5Worker(const std::string &filePath, Nan::Callback *appCallback)
@@ -19,14 +31,24 @@ public:
     std::ifstream file(from_utf8(m_FilePath), std::ifstream::binary);
     if (!file.is_open()) {
       SetErrorMessage("Failed to open");
+      return;
     }
-    else {
-      try {
-        m_Result = MD5::hashStream(file);
+
+    try {
+      MD5_CTX ctx;
+      MD5_Init(&ctx);
+      static const size_t BUF_SIZE = 8192;
+      char buffer[BUF_SIZE];
+      while (file.read(buffer, BUF_SIZE)) {
+        MD5_Update(&ctx, buffer, BUF_SIZE);
       }
-      catch (const std::exception &e) {
-        SetErrorMessage(e.what());
-      }
+      MD5_Update(&ctx, buffer, file.gcount());
+      uint8_t result[16];
+      MD5_Final(result, &ctx);
+      m_Result = toHex(result, 16);
+    }
+    catch (const std::exception &e) {
+      SetErrorMessage(e.what());
     }
   }
 
