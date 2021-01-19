@@ -1,11 +1,11 @@
-#include <nan.h>
+#include <napi.h>
 #include <fstream>
 #include <iterator>
+#include <iostream>
 #include "common.h"
 #include "md5.h"
 
-using namespace Nan;
-using namespace v8;
+#include <sstream>
 
 std::string toHex(uint8_t *buf, size_t len) {
   static const char *hex_chars = "0123456789abcdef";
@@ -19,18 +19,18 @@ std::string toHex(uint8_t *buf, size_t len) {
   return result;
 }
 
-class MD5Worker : public AsyncWorker {
+class MD5Worker : public Napi::AsyncWorker {
 public:
-  MD5Worker(const std::string &filePath, Nan::Callback *appCallback)
-    : Nan::AsyncWorker(appCallback)
+  MD5Worker(const std::string &filePath, const Napi::Function &appCallback)
+    : Napi::AsyncWorker(appCallback)
     , m_FilePath(filePath)
   {
   }
 
-  void Execute() {
+  virtual void Execute() override {
     std::ifstream file(from_utf8(m_FilePath), std::ifstream::binary);
     if (!file.is_open()) {
-      SetErrorMessage("Failed to open");
+      SetError("Failed to open");
       return;
     }
 
@@ -45,24 +45,19 @@ public:
       MD5_Update(&ctx, buffer, file.gcount());
       uint8_t result[16];
       MD5_Final(result, &ctx);
-      m_Result = toHex(result, 16);
+      std::stringstream ss;
+      ss << std::this_thread::get_id();
+      m_Result = ss.str();
+
+      // m_Result = toHex(result, 16);
     }
     catch (const std::exception &e) {
-      SetErrorMessage(e.what());
+      SetError(e.what());
     }
   }
 
-  void HandleOKCallback() {
-    Nan::HandleScope scope;
-    v8::Isolate* isolate = v8::Isolate::GetCurrent();
-
-    v8::Local<v8::Value> argv[] = {
-      Nan::Null(),
-      Nan::New<String>(m_Result).ToLocalChecked(),
-    };
-
-    callback->Call(2, argv, async_resource);
-
+  virtual void OnOK() override {
+    Callback().Call(Receiver().Value(), std::initializer_list<napi_value>{ Env().Null(), Napi::String::New(Env(), m_Result.c_str()) });
   }
 
 private:
@@ -70,29 +65,27 @@ private:
   std::string m_Result;
 };
 
-NAN_METHOD(fileMD5) {
-  Isolate *isolate = Isolate::GetCurrent();
-  Local<Context> context = Nan::GetCurrentContext();
-
+Napi::Value fileMD5(const Napi::CallbackInfo& info) {
   try {
     if (info.Length() != 2) {
-      Nan::ThrowError("Expected two parameters (path, callback)");
-      return;
+      throw std::runtime_error("Expected two parameters (path, callback)");
     }
 
-    String::Utf8Value pathV8(isolate, info[0]->ToString(context).ToLocalChecked());
-    Callback *callback = new Callback(To<v8::Function>(info[1]).ToLocalChecked());
+    Napi::Function callback = info[1].As<Napi::Function>();
 
-    Nan::AsyncQueueWorker(new MD5Worker(*pathV8, callback));
+    auto worker = new MD5Worker(info[0].ToString().Utf8Value(), callback);
+    worker->Queue();
   }
   catch (const std::exception &e) {
-    Nan::ThrowError(e.what());
+    napi_throw_error(info.Env(), "UNKNOWN", e.what());
   }
+  return info.Env().Undefined();
 }
 
-NAN_MODULE_INIT(Init) {
-  Nan::Set(target, "fileMD5"_n,
-    GetFunction(New<FunctionTemplate>(fileMD5)).ToLocalChecked());
+Napi::Object Init(Napi::Env env, Napi::Object exports) {
+  exports.Set("fileMD5", Napi::Function::New(env, fileMD5));
+
+  return exports;
 }
 
-NODE_MODULE(vortexmt, Init)
+NODE_API_MODULE(vortexmt, Init)

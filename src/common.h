@@ -1,18 +1,9 @@
-#include <nan.h>
-
-
-v8::Local<v8::String> operator "" _n(const char *input, size_t) {
-  return Nan::New(input).ToLocalChecked();
-}
+#include <napi.h>
 
 #ifdef WIN32
-typedef std::wstring native_string;
-#else // WIN32
-typedef std::string native_string;
-#endif
+#include <windows.h>
 
-native_string from_utf8(const std::string &input) {
-#ifdef WIN32
+std::wstring from_utf8(const std::string& input) {
   std::wstring result;
 
   if (input.length() > 0) {
@@ -27,13 +18,15 @@ native_string from_utf8(const std::string &input) {
     if (outLength == 0) {
       throw std::runtime_error("string conversion failed");
     }
-    while (result[outLength - 1] == L'\0') {
+    while ((outLength > 0) && (result[outLength - 1] == L'\0')) {
       result.resize(--outLength);
     }
   }
-
   return result;
-#else // WIN32
-  return input;
-#endif
 }
+
+#else // WIN32
+std::string from_utf8(const std::string& input) {
+  return input;
+}
+#endif

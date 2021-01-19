@@ -1,6 +1,6 @@
 {
   "name": "vortexmt",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Multithreaded operations for use in Vortex",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,7 @@
   "license": "GPL-3.0",
   "dependencies": {
     "autogypi": "^0.2.2",
-    "nan": "^2.14.0",
-    "node-gyp": "^5.0.0"
+    "node-addon-api": "^3.1.0",
+    "node-gyp": "^7.1.2"
   }
 }
