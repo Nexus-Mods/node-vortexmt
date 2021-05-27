@@ -45,11 +45,7 @@ public:
       MD5_Update(&ctx, buffer, file.gcount());
       uint8_t result[16];
       MD5_Final(result, &ctx);
-      std::stringstream ss;
-      ss << std::this_thread::get_id();
-      m_Result = ss.str();
-
-      // m_Result = toHex(result, 16);
+      m_Result = toHex(result, 16);
     }
     catch (const std::exception &e) {
       SetError(e.what());

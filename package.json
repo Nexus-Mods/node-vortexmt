@@ -1,6 +1,6 @@
 {
   "name": "vortexmt",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Multithreaded operations for use in Vortex",
   "main": "index.js",
   "scripts": {
