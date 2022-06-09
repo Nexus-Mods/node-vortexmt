@@ -1,0 +1,1 @@
+"C:\Program Files (x86)\Windows Kits\10\bin\10.0.17763.0\x64\SignTool.exe" sign /sm /sha1 94874d431f60a8faf5f179735605f0aee53519a9 /td sha256 /fd sha256 /tr http://timestamp.sectigo.com build\Release\vortexmt.node

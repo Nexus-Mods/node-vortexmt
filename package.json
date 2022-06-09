@@ -1,16 +1,31 @@
 {
   "name": "vortexmt",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Multithreaded operations for use in Vortex",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nexus-Mods/node-vortexmt.git"
+  },
   "scripts": {
-    "install": "autogypi && node-gyp configure build"
+    "prebuild": "prebuild.cmd -r napi -t 4 -a x64 --prepack codesign",
+    "preinstall": "autogypi",
+    "install": "prebuild-install -r napi -t 4 -a x64 || node-gyp rebuild"
   },
   "author": "Black Tree Gaming Ltd",
   "license": "GPL-3.0",
+  "binary": {
+    "napi_versions": [
+      4
+    ]
+  },
+  "devDependencies": {
+    "prebuild": "^11.0.3"
+  },
   "dependencies": {
     "autogypi": "^0.2.2",
     "node-addon-api": "^3.1.0",
-    "node-gyp": "^7.1.2"
+    "node-gyp": "^7.1.2",
+    "prebuild-install": "7.1.0"
   }
 }

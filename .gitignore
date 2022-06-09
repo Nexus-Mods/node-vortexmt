@@ -2,3 +2,4 @@ auto.gypi
 auto-top.gypi 
 build 
 node_modules 
+.prebuildrc  
