@@ -5,15 +5,11 @@
             "includes": [
                 "auto.gypi"
             ],
-            "conditions": [
-                ['OS=="win"', {
-                    "sources": [
-                        "src/common.h",
-                        "src/md5.h",
-                        "src/md5.cpp",
-                        "src/main.cpp"
-                    ],
-                }]
+            "sources": [
+                "src/common.h",
+                "src/md5.h",
+                "src/md5.cpp",
+                "src/main.cpp"
             ],
             "include_dirs": [
               "<!(node -p \"require('node-addon-api').include_dir\")"
