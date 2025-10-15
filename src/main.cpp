@@ -66,10 +66,28 @@ public:
     : Napi::AsyncProgressWorker<size_t>(appCallback)
     , m_FilePath(filePath)
     , m_Progress(Napi::Persistent(progressCallback))
+    , m_UseBuffer(false)
+  {
+  }
+
+  MD5Worker(const char* bufferData, size_t bufferSize, const Napi::Function &progressCallback, const Napi::Function &appCallback)
+    : Napi::AsyncProgressWorker<size_t>(appCallback)
+    , m_BufferData(bufferData)
+    , m_BufferSize(bufferSize)
+    , m_Progress(Napi::Persistent(progressCallback))
+    , m_UseBuffer(true)
   {
   }
 
   virtual void Execute(const ExecutionProgress& progress) override {
+    if (m_UseBuffer) {
+      ExecuteBuffer(progress);
+    } else {
+      ExecuteFile(progress);
+    }
+  }
+
+  void ExecuteFile(const ExecutionProgress& progress) {
     std::ifstream file(from_utf8(m_FilePath), std::ifstream::binary);
     if (!file.is_open()) {
       m_ErrorCode = errno;
@@ -109,6 +127,37 @@ public:
     }
   }
 
+  void ExecuteBuffer(const ExecutionProgress& progress) {
+    try {
+      MD5_CTX ctx;
+      MD5_Init(&ctx);
+      
+      static const size_t CHUNK_SIZE = 8192;
+      size_t offset = 0;
+      time_t lastProgress = 0;
+
+      while (offset < m_BufferSize) {
+        size_t chunkSize = std::min(CHUNK_SIZE, m_BufferSize - offset);
+        MD5_Update(&ctx, m_BufferData + offset, chunkSize);
+        offset += chunkSize;
+
+        time_t now = time(nullptr);
+        if ((now > lastProgress) && !m_Progress.IsEmpty()) {
+          size_t sizes[] = { offset, m_BufferSize };
+          progress.Send(sizes, 2);
+          lastProgress = now;
+        }
+      }
+
+      uint8_t result[16];
+      MD5_Final(result, &ctx);
+      m_Result = toHex(result, 16);
+    }
+    catch (const std::exception &e) {
+      SetError(e.what());
+    }
+  }
+
   virtual void OnOK() override {
     Callback().Call(Receiver().Value(), std::initializer_list<napi_value>{ Env().Null(), Napi::String::New(Env(), m_Result.c_str()) });
   }
@@ -131,15 +180,18 @@ public:
 
 private:
   std::string m_FilePath;
+  const char* m_BufferData;
+  size_t m_BufferSize;
   std::string m_Result;
   int m_ErrorCode;
+  bool m_UseBuffer;
   Napi::FunctionReference m_Progress;
 };
 
 Napi::Value fileMD5(const Napi::CallbackInfo& info) {
   try {
     if ((info.Length() < 2) || (info.Length() > 3)) {
-      throw std::runtime_error("Expected two or three parameters (path, callback, progressCB?)");
+      throw std::runtime_error("Expected two or three parameters (path/buffer, callback, progressCB?)");
     }
 
     Napi::Function callback = info[1].As<Napi::Function>();
@@ -147,7 +199,15 @@ Napi::Value fileMD5(const Napi::CallbackInfo& info) {
       ? info[2].As<Napi::Function>()
       : Napi::Function();
 
-    auto worker = new MD5Worker(info[0].ToString().Utf8Value(), progress, callback);
+    MD5Worker* worker = nullptr;
+    
+    if (info[0].IsBuffer()) {
+      Napi::Buffer<char> buffer = info[0].As<Napi::Buffer<char>>();
+      worker = new MD5Worker(buffer.Data(), buffer.Length(), progress, callback);
+    } else {
+      worker = new MD5Worker(info[0].ToString().Utf8Value(), progress, callback);
+    }
+    
     worker->Queue();
   }
   catch (const std::exception &e) {
